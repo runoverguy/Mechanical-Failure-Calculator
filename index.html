@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mechanical Element Failure Calculator</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Inter & Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .tab-transition { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-full flex flex-col antialiased selection:bg-indigo-500 selection:text-white">
+
+    <!-- Header -->
+    <header class="bg-slate-800 border-b border-slate-700 sticky top-0 z-50 shadow-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-500 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+                    <i class="fa-solid fa-gears text-white text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight text-white">Machine Design Lab</h1>
+                    <p class="text-xs text-slate-400">Failure Theories & Stress Analysis Suite</p>
+                </div>
+            </div>
+            <!-- Theory Selector Tabs -->
+            <div class="flex bg-slate-900 p-1.5 rounded-xl border border-slate-700/60 shadow-inner">
+                <button id="btn-ductile" onclick="switchTab('ductile')" class="px-5 py-2 text-sm font-semibold rounded-lg tab-transition flex items-center space-x-2 bg-indigo-600 text-white shadow">
+                    <i class="fa-solid fa-shield-halved text-xs"></i>
+                    <span>Von Mises (Ductile)</span>
+                </button>
+                <button id="btn-brittle" onclick="switchTab('brittle')" class="px-5 py-2 text-sm font-semibold rounded-lg tab-transition flex items-center space-x-2 text-slate-400 hover:text-slate-200">
+                    <i class="fa-solid fa-cube text-xs"></i>
+                    <span>Max Normal Stress (Brittle)</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        <!-- Left Column: Inputs & Controls (span 6) -->
+        <div class="lg:col-span-6 flex flex-col space-y-6">
+            
+            <!-- Theory Info Card -->
+            <div id="theory-info-card" class="bg-slate-800/80 backdrop-blur border border-slate-700/80 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none"></div>
+                <div class="flex items-start justify-between">
+                    <div>
+                        <span id="theory-badge" class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 mb-3">
+                            Yield Criterion
+                        </span>
+                        <h2 id="theory-title" class="text-2xl font-bold text-white tracking-tight">Distortion Energy Theory (Von Mises)</h2>
+                    </div>
+                </div>
+                <p id="theory-desc" class="text-slate-300 text-sm mt-3 leading-relaxed">
+                    Predicts yielding of ductile materials when the distortion strain energy reaches that at yield in simple tension. Highly reliable and standard for metal design.
+                </p>
+                <div class="mt-4 pt-4 border-t border-slate-700/60 flex items-center justify-between text-xs text-slate-400">
+                    <span id="theory-formula-text" class="font-mono text-indigo-300">$\sigma' = \sqrt{\sigma_x^2 - \sigma_x\sigma_y + \sigma_y^2 + 3\tau_{xy}^2}$</span>
+                    <button onclick="toggleFormulaModal()" class="text-indigo-400 hover:text-indigo-300 underline font-medium flex items-center space-x-1">
+                        <i class="fa-solid fa-circle-question"></i><span>Learn Theory</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Stress State Input Card -->
+            <div class="bg-slate-800/80 backdrop-blur border border-slate-700/80 rounded-2xl p-6 shadow-xl space-y-6">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-semibold text-white flex items-center space-x-2">
+                        <i class="fa-solid fa-sliders text-indigo-400"></i>
+                        <span>Stress State & Material Inputs</span>
+                    </h3>
+                    <div class="flex space-x-2">
+                        <button onclick="loadPreset('pure-shear')" class="text-xs bg-slate-700 hover:bg-slate-600 px-2.5 py-1 rounded-lg text-slate-300 transition">Pure Shear</button>
+                        <button onclick="loadPreset('biaxial')" class="text-xs bg-slate-700 hover:bg-slate-600 px-2.5 py-1 rounded-lg text-slate-300 transition">Biaxial</button>
+                    </div>
+                </div>
+
+                <!-- Input Mode Toggle -->
+                <div class="flex bg-slate-900 p-1 rounded-xl border border-slate-700 text-sm">
+                    <button id="mode-cartesian" onclick="setStressMode('cartesian')" class="flex-1 py-2 rounded-lg font-medium transition bg-slate-800 text-white shadow">Cartesian ($\sigma_x, \sigma_y, \tau_{xy}$)</button>
+                    <button id="mode-principal" onclick="setStressMode('principal')" class="flex-1 py-2 rounded-lg font-medium transition text-slate-400 hover:text-slate-200">Principal ($\sigma_1, \sigma_2$)</button>
+                </div>
+
+                <!-- Cartesian Inputs -->
+                <div id="cartesian-inputs" class="grid grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1.5">Normal X ($\sigma_x$)</label>
+                        <div class="relative">
+                            <input type="number" id="input-sig-x" value="150" oninput="calculate()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
+                            <span class="absolute right-3 top-2.5 text-xs text-slate-500">MPa</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1.5">Normal Y ($\sigma_y$)</label>
+                        <div class="relative">
+                            <input type="number" id="input-sig-y" value="-50" oninput="calculate()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
+                            <span class="absolute right-3 top-2.5 text-xs text-slate-500">MPa</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1.5">Shear XY ($\tau_{xy}$)</label>
+                        <div class="relative">
+                            <input type="number" id="input-tau-xy" value="60" oninput="calculate()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
+                            <span class="absolute right-3 top-2.5 text-xs text-slate-500">MPa</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Principal Inputs (hidden by default) -->
+                <div id="principal-inputs" class="grid grid-cols-2 gap-4 hidden">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1.5">Principal 1 ($\sigma_1$)</label>
+                        <div class="relative">
+                            <input type="number" id="input-sig-1" value="175" oninput="calculate()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
+                            <span class="absolute right-3 top-2.5 text-xs text-slate-500">MPa</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1.5">Principal 2 ($\sigma_2$)</label>
+                        <div class="relative">
+                            <input type="number" id="input-sig-2" value="-75" oninput="calculate()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
+                            <span class="absolute right-3 top-2.5 text-xs text-slate-500">MPa</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="border-t border-slate-700/60 pt-4">
+                    <label id="strength-label" class="block text-xs font-medium text-slate-300 mb-1.5">Yield Strength ($S_y$)</label>
+                    <div class="relative">
+                        <input type="number" id="input-strength" value="250" oninput="calculate()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-white font-mono text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
+                        <span class="absolute right-3 top-2.5 text-xs text-slate-500">MPa</span>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- Right Column: Results & Interactive Visualizations (span 6) -->
+        <div class="lg:col-span-6 flex flex-col space-y-6">
+            
+            <!-- Status & Safety Card -->
+            <div id="status-card" class="bg-gradient-to-br from-emerald-950/60 to-slate-800/80 border border-emerald-500/40 rounded-2xl p-6 shadow-2xl transition-all duration-300">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-4">
+                        <div id="status-icon-bg" class="w-14 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center shadow-lg">
+                            <i id="status-icon" class="fa-solid fa-shield-check text-emerald-400 text-2xl"></i>
+                        </div>
+                        <div>
+                            <span class="text-xs uppercase tracking-wider font-bold text-emerald-400">Design Status</span>
+                            <h3 id="status-title" class="text-2xl font-bold text-white">ELEMENT IS SAFE</h3>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-xs text-slate-400 block">Factor of Safety ($n$)</span>
+                        <span id="res-fos" class="text-3xl font-extrabold font-mono text-emerald-400">1.39</span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 mt-6 pt-6 border-t border-emerald-500/20">
+                    <div>
+                        <span id="res-primary-label" class="text-xs text-slate-400">Equivalent Stress ($\sigma'$)</span>
+                        <div class="text-xl font-bold font-mono text-white mt-1"><span id="res-primary-val">179.7</span> <span class="text-xs text-slate-400 font-normal">MPa</span></div>
+                    </div>
+                    <div>
+                        <span class="text-xs text-slate-400">Allowable Stress ($\sigma_{all} = S_y / n_{target}$)</span>
+                        <div class="text-xl font-bold font-mono text-white mt-1">250.0 <span class="text-xs text-slate-400 font-normal">MPa</span></div>
+                    </div>
+                </div>
+
+                <!-- Progress Bar Factor of Safety -->
+                <div class="mt-4">
+                    <div class="flex justify-between text-xs text-slate-400 mb-1">
+                        <span>Utilization ratio ($\sigma_{eq} / S$)</span>
+                        <span id="res-utilization" class="font-mono text-slate-200 font-semibold">71.9%</span>
+                    </div>
+                    <div class="w-full bg-slate-900 rounded-full h-2.5 overflow-hidden border border-slate-700">
+                        <div id="utilization-bar" class="bg-emerald-500 h-2.5 rounded-full transition-all duration-500" style="width: 71.9%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Graphical Stress State Diagram & Yield Envelope -->
+            <div class="bg-slate-800/80 backdrop-blur border border-slate-700/80 rounded-2xl p-6 shadow-xl flex flex-col space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-semibold text-white flex items-center space-x-2">
+                        <i class="fa-solid fa-chart-line text-indigo-400"></i>
+                        <span id="graph-title-label">Principal Stress State & Yield Locus</span>
+                    </h3>
+                    <span class="text-xs font-mono text-slate-400 bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-700">2D Principal Space</span>
+                </div>
+
+                <!-- Canvas for Interactive Yield Envelope / Principal Plot -->
+                <div class="relative w-full aspect-[16/10] bg-slate-900 rounded-xl border border-slate-700/80 overflow-hidden flex items-center justify-center">
+                    <canvas id="envelopeCanvas" class="w-full h-full cursor-pointer"></canvas>
+                    <div id="canvas-tooltip" class="absolute bottom-2 left-2 bg-slate-800/90 border border-slate-700 text-xs text-slate-300 px-2.5 py-1 rounded-lg pointer-events-none hidden font-mono"></div>
+                </div>
+
+                <div class="flex items-center justify-between text-xs text-slate-400 px-1">
+                    <div class="flex items-center space-x-2">
+                        <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block"></span>
+                        <span>Current Operating State ($\sigma_1, \sigma_2$)</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="w-3 h-3 rounded-full bg-emerald-400 inline-block"></span>
+                        <span>Safe Region Boundary</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- Educational Modal -->
+    <div id="formula-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-800 border border-slate-700 rounded-3xl max-w-lg w-full p-6 shadow-2xl relative space-y-4">
+            <button onclick="toggleFormulaModal()" class="absolute top-5 right-5 text-slate-400 hover:text-white text-lg">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
+                    <i class="fa-solid fa-book-open"></i>
+                </div>
+                <h3 id="modal-title" class="text-xl font-bold text-white">Distortion Energy Theory Breakdown</h3>
+            </div>
+            <div id="modal-content" class="text-sm text-slate-300 space-y-3 leading-relaxed">
+                <p>The <strong>Distortion Energy Theory</strong> (also known as the von Mises or Huber-Hencky theory) posits that yielding begins when the strain energy associated with shear deformation (distortion) equals the distortion strain energy at yield in simple tension.</p>
+                <div class="bg-slate-900 p-3 rounded-xl border border-slate-700 font-mono text-indigo-300 text-xs">
+                    $\sigma' = \sqrt{\frac{(\sigma_1-\sigma_2)^2 + (\sigma_2-\sigma_3)^2 + (\sigma_3-\sigma_1)^2}{2}}$
+                </div>
+                <p>For 2D Plane Stress ($\sigma_3 = 0$), this simplifies to:</p>
+                <div class="bg-slate-900 p-3 rounded-xl border border-slate-700 font-mono text-indigo-300 text-xs">
+                    $\sigma' = \sqrt{\sigma_x^2 - \sigma_x\sigma_y + \sigma_y^2 + 3\tau_{xy}^2}$
+                </div>
+            </div>
+            <div class="pt-4 border-t border-slate-700 flex justify-end">
+                <button onclick="toggleFormulaModal()" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-semibold transition">Got it</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Calculation & Application Logic -->
+    <script>
+        let currentTheory = 'ductile'; // 'ductile' or 'brittle'
+        let stressMode = 'cartesian'; // 'cartesian' or 'principal'
+
+        function switchTab(theory) {
+            currentTheory = theory;
+            const btnDuctile = document.getElementById('btn-ductile');
+            const btnBrittle = document.getElementById('btn-brittle');
+            const badge = document.getElementById('theory-badge');
+            const title = document.getElementById('theory-title');
+            const desc = document.getElementById('theory-desc');
+            const formulaText = document.getElementById('theory-formula-text');
+            const strengthLabel = document.getElementById('strength-label');
+            const modalTitle = document.getElementById('modal-title');
+            const modalContent = document.getElementById('modal-content');
+            const graphTitleLabel = document.getElementById('graph-title-label');
+
+            if (theory === 'ductile') {
+                btnDuctile.className = "px-5 py-2 text-sm font-semibold rounded-lg tab-transition flex items-center space-x-2 bg-indigo-600 text-white shadow";
+                btnBrittle.className = "px-5 py-2 text-sm font-semibold rounded-lg tab-transition flex items-center space-x-2 text-slate-400 hover:text-slate-200";
+                
+                badge.innerText = "Yield Criterion";
+                badge.className = "inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 mb-3";
+                title.innerText = "Distortion Energy Theory (Von Mises)";
+                desc.innerText = "Predicts yielding of ductile materials when the distortion strain energy reaches that at yield in simple tension. Highly reliable and standard for metal design.";
+                formulaText.innerHTML = "$\\sigma' = \\sqrt{\\sigma_x^2 - \\sigma_x\\sigma_y + \\sigma_y^2 + 3\\tau_{xy}^2}$";
+                strengthLabel.innerHTML = "Yield Strength ($S_y$)";
+                document.getElementById('input-strength').value = 250;
+                graphTitleLabel.innerText = "Principal Stress State & von Mises Yield Ellipse";
+
+                modalTitle.innerText = "Distortion Energy Theory Breakdown";
+                modalContent.innerHTML = `
+                    <p>The <strong>Distortion Energy Theory</strong> (von Mises theory) posits that yielding begins when the strain energy of distortion reaches the distortion strain energy at yield in simple tension.</p>
+                    <div class="bg-slate-900 p-3 rounded-xl border border-slate-700 font-mono text-indigo-300 text-xs">
+                        $\\sigma' = \\sqrt{\\sigma_x^2 - \\sigma_x\\sigma_y + \sigma_y^2 + 3\\tau_{xy}^2}$
+                    </div>
+                    <p>Factor of Safety: $n = S_y / \\sigma'$</p>
+                `;
+            } else {
+                btnBrittle.className = "px-5 py-2 text-sm font-semibold rounded-lg tab-transition flex items-center space-x-2 bg-violet-600 text-white shadow";
+                btnDuctile.className = "px-5 py-2 text-sm font-semibold rounded-lg tab-transition flex items-center space-x-2 text-slate-400 hover:text-slate-200";
+                
+                badge.innerText = "Fracture Criterion";
+                badge.className = "inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-violet-500/20 text-violet-300 border border-violet-500/30 mb-3";
+                title.innerText = "Maximum Normal Stress Theory (Rankine)";
+                desc.innerText = "Predicts brittle fracture when the maximum principal stress reaches the ultimate tensile strength of the material.";
+                formulaText.innerHTML = "$\\sigma_{max} = \\sigma_1 \\ge S_{ut}$";
+                strengthLabel.innerHTML = "Ultimate Tensile Strength ($S_{ut}$)";
+                document.getElementById('input-strength').value = 350;
+                graphTitleLabel.innerText = "Principal Stress State & Brittle Fracture Box";
+
+                modalTitle.innerText = "Maximum Normal Stress Theory Breakdown";
+                modalContent.innerHTML = `
+                    <p>The <strong>Maximum Normal Stress Theory</strong> states that failure occurs when the maximum principal stress $\sigma_1$ equals or exceeds the ultimate tensile strength $S_{ut}$ (or when minimum principal stress $\sigma_3$ exceeds compressive strength $S_{uc}$).</p>
+                    <div class="bg-slate-900 p-3 rounded-xl border border-slate-700 font-mono text-violet-300 text-xs">
+                        $\\sigma_1 \\ge S_{ut} \\quad \\text{or} \\quad \\sigma_3 \\le -S_{uc}$
+                    </div>
+                    <p>Factor of Safety: $n = S_{ut} / \\sigma_{max}$</p>
+                `;
+            }
+            calculate();
+        }
+
+        function setStressMode(mode) {
+            stressMode = mode;
+            const btnCartesian = document.getElementById('mode-cartesian');
+            const btnPrincipal = document.getElementById('mode-principal');
+            const cartesianInputs = document.getElementById('cartesian-inputs');
+            const principalInputs = document.getElementById('principal-inputs');
+
+            if (mode === 'cartesian') {
+                btnCartesian.className = "flex-1 py-2 rounded-lg font-medium transition bg-slate-800 text-white shadow";
+                btnPrincipal.className = "flex-1 py-2 rounded-lg font-medium transition text-slate-400 hover:text-slate-200";
+                cartesianInputs.classList.remove('hidden');
+                principalInputs.classList.add('hidden');
+                
+                // Sync from principal if needed
+                let s1 = parseFloat(document.getElementById('input-sig-1').value) || 0;
+                let s2 = parseFloat(document.getElementById('input-sig-2').value) || 0;
+                document.getElementById('input-sig-x').value = ((s1 + s2) / 2).toFixed(1);
+                document.getElementById('input-sig-y').value = ((s1 - s2) / 2).toFixed(1);
+                document.getElementById('input-tau-xy').value = "0";
+            } else {
+                btnPrincipal.className = "flex-1 py-2 rounded-lg font-medium transition bg-slate-800 text-white shadow";
+                btnCartesian.className = "flex-1 py-2 rounded-lg font-medium transition text-slate-400 hover:text-slate-200";
+                principalInputs.classList.remove('hidden');
+                cartesianInputs.classList.add('hidden');
+
+                // Sync from cartesian
+                let sx = parseFloat(document.getElementById('input-sig-x').value) || 0;
+                let sy = parseFloat(document.getElementById('input-sig-y').value) || 0;
+                let txy = parseFloat(document.getElementById('input-tau-xy').value) || 0;
+                let center = (sx + sy) / 2;
+                let radius = Math.sqrt(Math.pow((sx - sy) / 2, 2) + Math.pow(txy, 2));
+                document.getElementById('input-sig-1').value = (center + radius).toFixed(1);
+                document.getElementById('input-sig-2').value = (center - radius).toFixed(1);
+            }
+            calculate();
+        }
+
+        function loadPreset(type) {
+            if (type === 'pure-shear') {
+                setStressMode('cartesian');
+                document.getElementById('input-sig-x').value = 0;
+                document.getElementById('input-sig-y').value = 0;
+                document.getElementById('input-tau-xy').value = 120;
+            } else if (type === 'biaxial') {
+                setStressMode('cartesian');
+                document.getElementById('input-sig-x').value = 180;
+                document.getElementById('input-sig-y').value = 120;
+                document.getElementById('input-tau-xy').value = 30;
+            }
+            calculate();
+        }
+
+        function toggleFormulaModal() {
+            const modal = document.getElementById('formula-modal');
+            modal.classList.toggle('hidden');
+        }
+
+        function calculate() {
+            let sx, sy, txy, s1, s2;
+            let strength = parseFloat(document.getElementById('input-strength').value) || 250;
+
+            if (stressMode === 'cartesian') {
+                sx = parseFloat(document.getElementById('input-sig-x').value) || 0;
+                sy = parseFloat(document.getElementById('input-sig-y').value) || 0;
+                txy = parseFloat(document.getElementById('input-tau-xy').value) || 0;
+
+                let center = (sx + sy) / 2;
+                let radius = Math.sqrt(Math.pow((sx - sy) / 2, 2) + Math.pow(txy, 2));
+                s1 = center + radius;
+                s2 = center - radius;
+            } else {
+                s1 = parseFloat(document.getElementById('input-sig-1').value) || 0;
+                s2 = parseFloat(document.getElementById('input-sig-2').value) || 0;
+                sx = s1;
+                sy = s2;
+                txy = 0;
+            }
+
+            let equivStress = 0;
+            let fos = 0;
+            let isSafe = true;
+
+            if (currentTheory === 'ductile') {
+                // Von Mises Equivalent Stress
+                equivStress = Math.sqrt(Math.max(0, s1*s1 - s1*s2 + s2*s2));
+                if (equivStress === 0) equivStress = 0.001;
+                fos = strength / equivStress;
+                isSafe = equivStress <= strength;
+            } else {
+                // Maximum Normal Stress
+                let maxPrincipal = Math.max(s1, s2, 0);
+                equivStress = maxPrincipal;
+                if (equivStress <= 0) {
+                    fos = 99.9;
+                    isSafe = true;
+                } else {
+                    fos = strength / equivStress;
+                    isSafe = equivStress <= strength;
+                }
+            }
+
+            updateUI(isSafe, fos, equivStress, strength, s1, s2);
+            drawCanvas(s1, s2, strength);
+        }
+
+        function updateUI(isSafe, fos, equivStress, strength, s1, s2) {
+            const statusCard = document.getElementById('status-card');
+            const statusIconBg = document.getElementById('status-icon-bg');
+            const statusIcon = document.getElementById('status-icon');
+            const statusTitle = document.getElementById('status-title');
+            const resFos = document.getElementById('res-fos');
+            const resPrimaryVal = document.getElementById('res-primary-val');
+            const resPrimaryLabel = document.getElementById('res-primary-label');
+            const resUtilization = document.getElementById('res-utilization');
+            const utilizationBar = document.getElementById('utilization-bar');
+
+            resFos.innerText = fos > 99 ? "99+" : fos.toFixed(2);
+            resPrimaryVal.innerText = equivStress.toFixed(1);
+            resPrimaryLabel.innerText = currentTheory === 'ductile' ? "Equivalent Stress (σ')" : "Max Principal Stress (σ₁)";
+
+            let util = (equivStress / strength) * 100;
+            if (util > 100) util = 100;
+            resUtilization.innerText = util.toFixed(1) + "%";
+            utilizationBar.style.width = util.toFixed(1) + "%";
+
+            if (isSafe) {
+                statusCard.className = "bg-gradient-to-br from-emerald-950/60 to-slate-800/80 border border-emerald-500/40 rounded-2xl p-6 shadow-2xl transition-all duration-300";
+                statusIconBg.className = "w-14 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center shadow-lg";
+                statusIcon.className = "fa-solid fa-shield-check text-emerald-400 text-2xl";
+                statusTitle.innerText = "ELEMENT IS SAFE";
+                resFos.className = "text-3xl font-extrabold font-mono text-emerald-400";
+                utilizationBar.className = "bg-emerald-500 h-2.5 rounded-full transition-all duration-500";
+            } else {
+                statusCard.className = "bg-gradient-to-br from-rose-950/60 to-slate-800/80 border border-rose-500/40 rounded-2xl p-6 shadow-2xl transition-all duration-300";
+                statusIconBg.className = "w-14 h-14 rounded-2xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center shadow-lg";
+                statusIcon.className = "fa-solid fa-triangle-exclamation text-rose-400 text-2xl";
+                statusTitle.innerText = "FAILURE DETECTED";
+                resFos.className = "text-3xl font-extrabold font-mono text-rose-400";
+                utilizationBar.className = "bg-rose-500 h-2.5 rounded-full transition-all duration-500";
+            }
+        }
+
+        function drawCanvas(s1, s2, strength) {
+            const canvas = document.getElementById('envelopeCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Set canvas resolution for crisp display
+            canvas.width = canvas.parentElement.clientWidth * window.devicePixelRatio;
+            canvas.height = canvas.parentElement.clientHeight * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+            const width = canvas.parentElement.clientWidth;
+            const height = canvas.parentElement.clientHeight;
+
+            ctx.clearRect(0, 0, width, height);
+
+            // Center and scale
+            const maxVal = Math.max(Math.abs(s1), Math.abs(s2), strength * 1.4, 150);
+            const scale = (Math.min(width, height) * 0.38) / maxVal;
+            const cx = width / 2;
+            const cy = height / 2;
+
+            // Draw grid axes
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(0, cy); ctx.lineTo(width, cy);
+            ctx.moveTo(cx, 0); ctx.lineTo(cx, height);
+            ctx.stroke();
+
+            // Axis labels
+            ctx.fillStyle = '#64748b';
+            ctx.font = '11px Inter, sans-serif';
+            ctx.fillText('σ₂', cx + 8, 16);
+            ctx.fillText('σ₁', width - 20, cy - 8);
+
+            // Draw Yield Locus / Envelope
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.scale(scale, -scale); // Standard Cartesian y-up
+
+            if (currentTheory === 'ductile') {
+                // Von Mises Ellipse: s1^2 - s1*s2 + s2^2 = Sy^2
+                ctx.beginPath();
+                for (let angle = 0; angle <= Math.PI * 2; angle += 0.02) {
+                    let cosA = Math.cos(angle);
+                    let sinA = Math.sin(angle);
+                    // Parametric approximation or ellipse radius in polar coordinates
+                    let r = strength / Math.sqrt(Math.max(0.1, cosA*cosA - cosA*sinA + sinA*sinA));
+                    let x = r * cosA;
+                    let y = r * sinA;
+                    if (angle === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.closePath();
+                ctx.fillStyle = 'rgba(16, 185, 129, 0.08)';
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(16, 185, 129, 0.5)';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([4, 4]);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            } else {
+                // Maximum Normal Stress Square Envelope: -Sut <= s1, s2 <= Sut
+                ctx.beginPath();
+                ctx.rect(-strength, -strength, strength * 2, strength * 2);
+                ctx.fillStyle = 'rgba(139, 92, 246, 0.08)';
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(139, 92, 246, 0.5)';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([4, 4]);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+
+            // Draw current stress point (s2 is x-axis here or vice-versa, let's map s2 to X and s1 to Y for standard Mohr/principal representation)
+            // Convention: Horizontal axis = σ₁, Vertical axis = σ₂
+            let px = s1;
+            let py = s2;
+
+            ctx.beginPath();
+            ctx.arc(px, py, maxVal * 0.04, 0, Math.PI * 2);
+            ctx.fillStyle = currentTheory === 'ductile' ? '#6366f1' : '#8b5cf6';
+            ctx.fill();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#ffffff';
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        // Initialize calculation on load
+        window.onload = function() {
+            calculate();
+        };
+
+        window.onresize = function() {
+            calculate();
+        };
+    </script>
+</body>
+</html>
