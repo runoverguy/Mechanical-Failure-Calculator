@@ -152,6 +152,14 @@
                     </div>
                 </div>
 
+                <!-- Material Type Selector -->
+                <div class="border-t border-slate-700/60 pt-4">
+                    <label class="block text-xs font-medium text-slate-300 mb-1.5"><i class="fa-solid fa-gem text-indigo-400 mr-1"></i> Material Preset</label>
+                    <select id="material-select" onchange="applyMaterialPreset()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 mb-3">
+                        <!-- Populated dynamically via JS -->
+                    </select>
+                </div>
+
                 <div class="border-t border-slate-700/60 pt-4">
                     <label id="strength-label" class="block text-xs font-medium text-slate-300 mb-1.5">Yield Strength ($S_y$)</label>
                     <div class="relative">
@@ -273,6 +281,39 @@
         let currentTheory = 'ductile'; // 'ductile' or 'brittle'
         let stressMode = 'cartesian'; // 'cartesian' or 'principal'
 
+        // Material Presets
+        const materials = {
+            ductile: [
+                { name: "Structural Steel (A36) - Sy = 250 MPa", strength: 250 },
+                { name: "Aluminum Alloy (6061-T6) - Sy = 276 MPa", strength: 276 },
+                { name: "Titanium Alloy (Ti-6Al-4V) - Sy = 880 MPa", strength: 880 }
+            ],
+            brittle: [
+                { name: "Gray Cast Iron (ASTM 30) - Sut = 200 MPa", strength: 200 },
+                { name: "High-Strength Steel (AISI 4340) - Sut = 1280 MPa", strength: 1280 },
+                { name: "Alumina Ceramic - Sut = 300 MPa", strength: 300 }
+            ]
+        };
+
+        function populateMaterialDropdown() {
+            const select = document.getElementById('material-select');
+            select.innerHTML = '';
+            const list = materials[currentTheory];
+            list.forEach((mat, index) => {
+                const opt = document.createElement('option');
+                opt.value = mat.strength;
+                opt.innerText = mat.name;
+                select.appendChild(opt);
+            });
+            document.getElementById('input-strength').value = list[0].strength;
+        }
+
+        function applyMaterialPreset() {
+            const select = document.getElementById('material-select');
+            document.getElementById('input-strength').value = select.value;
+            calculate();
+        }
+
         function triggerMathJax() {
             if (window.MathJax && window.MathJax.typesetPromise) {
                 window.MathJax.typesetPromise().catch((err) => console.log('MathJax error:', err));
@@ -302,7 +343,6 @@
                 desc.innerText = "Predicts yielding of ductile materials when the distortion strain energy reaches that at yield in simple tension. Highly reliable and standard for metal design.";
                 formulaText.innerHTML = "$\\sigma' = \\sqrt{\\sigma_x^2 - \\sigma_x\\sigma_y + \\sigma_y^2 + 3\\tau_{xy}^2}$";
                 strengthLabel.innerHTML = "Yield Strength ($S_y$)";
-                document.getElementById('input-strength').value = 250;
                 graphTitleLabel.innerText = "Principal Stress State & von Mises Yield Ellipse";
 
                 modalTitle.innerText = "Distortion Energy Theory Breakdown";
@@ -323,7 +363,6 @@
                 desc.innerText = "Predicts brittle fracture when the maximum principal stress reaches the ultimate tensile strength of the material.";
                 formulaText.innerHTML = "$\\sigma_{max} = \\sigma_1 \\ge S_{ut}$";
                 strengthLabel.innerHTML = "Ultimate Tensile Strength ($S_{ut}$)";
-                document.getElementById('input-strength').value = 350;
                 graphTitleLabel.innerText = "Principal Stress State & Brittle Fracture Box";
 
                 modalTitle.innerText = "Maximum Normal Stress Theory Breakdown";
@@ -335,6 +374,7 @@
                     <p>Factor of Safety: $n = S_{ut} / \\sigma_{max}$</p>
                 `;
             }
+            populateMaterialDropdown();
             calculate();
             triggerMathJax();
         }
@@ -559,6 +599,7 @@
         }
 
         window.onload = function() {
+            populateMaterialDropdown();
             calculate();
             triggerMathJax();
         };
