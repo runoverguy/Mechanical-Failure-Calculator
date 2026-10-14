@@ -10,6 +10,14 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- MathJax CDN for rendering formulas -->
+    <script>
+        window.MathJax = {
+            tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] },
+            svg: { fontCache: 'global' }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -246,11 +254,11 @@
             </div>
             <div id="modal-content" class="text-sm text-slate-300 space-y-3 leading-relaxed">
                 <p>The <strong>Distortion Energy Theory</strong> (also known as the von Mises or Huber-Hencky theory) posits that yielding begins when the strain energy associated with shear deformation (distortion) equals the distortion strain energy at yield in simple tension.</p>
-                <div class="bg-slate-900 p-3 rounded-xl border border-slate-700 font-mono text-indigo-300 text-xs">
+                <div class="bg-slate-900 p-3 rounded-xl border border-slate-700 font-mono text-indigo-300 text-xs text-center">
                     $\sigma' = \sqrt{\frac{(\sigma_1-\sigma_2)^2 + (\sigma_2-\sigma_3)^2 + (\sigma_3-\sigma_1)^2}{2}}$
                 </div>
                 <p>For 2D Plane Stress ($\sigma_3 = 0$), this simplifies to:</p>
-                <div class="bg-slate-900 p-3 rounded-xl border border-slate-700 font-mono text-indigo-300 text-xs">
+                <div class="bg-slate-900 p-3 rounded-xl border border-slate-700 font-mono text-indigo-300 text-xs text-center">
                     $\sigma' = \sqrt{\sigma_x^2 - \sigma_x\sigma_y + \sigma_y^2 + 3\tau_{xy}^2}$
                 </div>
             </div>
@@ -264,6 +272,12 @@
     <script>
         let currentTheory = 'ductile'; // 'ductile' or 'brittle'
         let stressMode = 'cartesian'; // 'cartesian' or 'principal'
+
+        function triggerMathJax() {
+            if (window.MathJax && window.MathJax.typesetPromise) {
+                window.MathJax.typesetPromise().catch((err) => console.log('MathJax error:', err));
+            }
+        }
 
         function switchTab(theory) {
             currentTheory = theory;
@@ -294,8 +308,8 @@
                 modalTitle.innerText = "Distortion Energy Theory Breakdown";
                 modalContent.innerHTML = `
                     <p>The <strong>Distortion Energy Theory</strong> (von Mises theory) posits that yielding begins when the strain energy of distortion reaches the distortion strain energy at yield in simple tension.</p>
-                    <div class="bg-slate-900 p-3 rounded-xl border border-slate-700 font-mono text-indigo-300 text-xs">
-                        $\\sigma' = \\sqrt{\\sigma_x^2 - \\sigma_x\\sigma_y + \sigma_y^2 + 3\\tau_{xy}^2}$
+                    <div class="bg-slate-900 p-3 rounded-xl border border-slate-700 font-mono text-indigo-300 text-xs text-center">
+                        $\\sigma' = \\sqrt{\\sigma_x^2 - \\sigma_x\\sigma_y + \\sigma_y^2 + 3\\tau_{xy}^2}$
                     </div>
                     <p>Factor of Safety: $n = S_y / \\sigma'$</p>
                 `;
@@ -314,14 +328,15 @@
 
                 modalTitle.innerText = "Maximum Normal Stress Theory Breakdown";
                 modalContent.innerHTML = `
-                    <p>The <strong>Maximum Normal Stress Theory</strong> states that failure occurs when the maximum principal stress $\sigma_1$ equals or exceeds the ultimate tensile strength $S_{ut}$ (or when minimum principal stress $\sigma_3$ exceeds compressive strength $S_{uc}$).</p>
-                    <div class="bg-slate-900 p-3 rounded-xl border border-slate-700 font-mono text-violet-300 text-xs">
+                    <p>The <strong>Maximum Normal Stress Theory</strong> states that failure occurs when the maximum principal stress $\\sigma_1$ equals or exceeds the ultimate tensile strength $S_{ut}$ (or when minimum principal stress $\\sigma_3$ exceeds compressive strength $S_{uc}$).</p>
+                    <div class="bg-slate-900 p-3 rounded-xl border border-slate-700 font-mono text-violet-300 text-xs text-center">
                         $\\sigma_1 \\ge S_{ut} \\quad \\text{or} \\quad \\sigma_3 \\le -S_{uc}$
                     </div>
                     <p>Factor of Safety: $n = S_{ut} / \\sigma_{max}$</p>
                 `;
             }
             calculate();
+            triggerMathJax();
         }
 
         function setStressMode(mode) {
@@ -337,7 +352,6 @@
                 cartesianInputs.classList.remove('hidden');
                 principalInputs.classList.add('hidden');
                 
-                // Sync from principal if needed
                 let s1 = parseFloat(document.getElementById('input-sig-1').value) || 0;
                 let s2 = parseFloat(document.getElementById('input-sig-2').value) || 0;
                 document.getElementById('input-sig-x').value = ((s1 + s2) / 2).toFixed(1);
@@ -349,7 +363,6 @@
                 principalInputs.classList.remove('hidden');
                 cartesianInputs.classList.add('hidden');
 
-                // Sync from cartesian
                 let sx = parseFloat(document.getElementById('input-sig-x').value) || 0;
                 let sy = parseFloat(document.getElementById('input-sig-y').value) || 0;
                 let txy = parseFloat(document.getElementById('input-tau-xy').value) || 0;
@@ -359,6 +372,7 @@
                 document.getElementById('input-sig-2').value = (center - radius).toFixed(1);
             }
             calculate();
+            triggerMathJax();
         }
 
         function loadPreset(type) {
@@ -379,6 +393,7 @@
         function toggleFormulaModal() {
             const modal = document.getElementById('formula-modal');
             modal.classList.toggle('hidden');
+            triggerMathJax();
         }
 
         function calculate() {
@@ -407,13 +422,11 @@
             let isSafe = true;
 
             if (currentTheory === 'ductile') {
-                // Von Mises Equivalent Stress
                 equivStress = Math.sqrt(Math.max(0, s1*s1 - s1*s2 + s2*s2));
                 if (equivStress === 0) equivStress = 0.001;
                 fos = strength / equivStress;
                 isSafe = equivStress <= strength;
             } else {
-                // Maximum Normal Stress
                 let maxPrincipal = Math.max(s1, s2, 0);
                 equivStress = maxPrincipal;
                 if (equivStress <= 0) {
@@ -470,7 +483,6 @@
             const canvas = document.getElementById('envelopeCanvas');
             const ctx = canvas.getContext('2d');
             
-            // Set canvas resolution for crisp display
             canvas.width = canvas.parentElement.clientWidth * window.devicePixelRatio;
             canvas.height = canvas.parentElement.clientHeight * window.devicePixelRatio;
             ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
@@ -480,13 +492,11 @@
 
             ctx.clearRect(0, 0, width, height);
 
-            // Center and scale
             const maxVal = Math.max(Math.abs(s1), Math.abs(s2), strength * 1.4, 150);
             const scale = (Math.min(width, height) * 0.38) / maxVal;
             const cx = width / 2;
             const cy = height / 2;
 
-            // Draw grid axes
             ctx.strokeStyle = '#334155';
             ctx.lineWidth = 1;
             ctx.beginPath();
@@ -494,24 +504,20 @@
             ctx.moveTo(cx, 0); ctx.lineTo(cx, height);
             ctx.stroke();
 
-            // Axis labels
             ctx.fillStyle = '#64748b';
             ctx.font = '11px Inter, sans-serif';
             ctx.fillText('σ₂', cx + 8, 16);
             ctx.fillText('σ₁', width - 20, cy - 8);
 
-            // Draw Yield Locus / Envelope
             ctx.save();
             ctx.translate(cx, cy);
-            ctx.scale(scale, -scale); // Standard Cartesian y-up
+            ctx.scale(scale, -scale);
 
             if (currentTheory === 'ductile') {
-                // Von Mises Ellipse: s1^2 - s1*s2 + s2^2 = Sy^2
                 ctx.beginPath();
                 for (let angle = 0; angle <= Math.PI * 2; angle += 0.02) {
                     let cosA = Math.cos(angle);
                     let sinA = Math.sin(angle);
-                    // Parametric approximation or ellipse radius in polar coordinates
                     let r = strength / Math.sqrt(Math.max(0.1, cosA*cosA - cosA*sinA + sinA*sinA));
                     let x = r * cosA;
                     let y = r * sinA;
@@ -527,7 +533,6 @@
                 ctx.stroke();
                 ctx.setLineDash([]);
             } else {
-                // Maximum Normal Stress Square Envelope: -Sut <= s1, s2 <= Sut
                 ctx.beginPath();
                 ctx.rect(-strength, -strength, strength * 2, strength * 2);
                 ctx.fillStyle = 'rgba(139, 92, 246, 0.08)';
@@ -539,8 +544,6 @@
                 ctx.setLineDash([]);
             }
 
-            // Draw current stress point (s2 is x-axis here or vice-versa, let's map s2 to X and s1 to Y for standard Mohr/principal representation)
-            // Convention: Horizontal axis = σ₁, Vertical axis = σ₂
             let px = s1;
             let py = s2;
 
@@ -555,9 +558,9 @@
             ctx.restore();
         }
 
-        // Initialize calculation on load
         window.onload = function() {
             calculate();
+            triggerMathJax();
         };
 
         window.onresize = function() {
